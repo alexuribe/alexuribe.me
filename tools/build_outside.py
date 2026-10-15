@@ -1,0 +1,204 @@
+"""Build outside/index.html from a Strava export's activities.csv.
+
+Usage: python3 -I tools/build_outside.py ~/Downloads/export_XXXX/activities.csv
+
+Only yearly hour totals per activity family and a few lifetime totals end up in
+the page. No names, notes, dates of single activities, or locations are used.
+"""
+import csv
+import html
+import sys
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+NBSP = " "
+
+# Strava activity type -> family shown on the page. Indoor types are left out.
+FAMILIES = [
+    ("Hiking", {"Hike"}),
+    ("Running", {"Run", "Trail Run"}),
+    ("Climbing", {"Rock Climb"}),
+    ("Skiing", {"Alpine Ski", "Backcountry Ski", "Nordic Ski", "Snowboard"}),
+    ("Biking", {"Ride", "E-Bike Ride", "Gravel Ride", "Mountain Bike Ride"}),
+    ("Walking", {"Walk"}),
+    ("On the water", {"Kayaking", "Stand Up Paddling", "Rowing", "Swim", "Canoeing"}),
+]
+FAMILY_OF = {t: name for name, types in FAMILIES for t in types}
+
+
+def load(path):
+    with open(path, newline="", encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+    header, data = rows[0], rows[1:]
+
+    def col(name, nth=0):
+        return [i for i, h in enumerate(header) if h == name][nth]
+
+    i_date, i_type, i_moving = col("Activity Date"), col("Activity Type"), col("Moving Time")
+    i_dist, i_elev = col("Distance", 1), col("Elevation Gain")  # 2nd Distance is meters
+    out = []
+    for r in data:
+        fam = FAMILY_OF.get(r[i_type])
+        if not fam:
+            continue
+        when = None
+        for fmt in ("%b %d, %Y, %I:%M:%S %p", "%b %d, %Y, %H:%M:%S"):
+            try:
+                when = datetime.strptime(r[i_date], fmt)
+                break
+            except ValueError:
+                pass
+        if not when:
+            continue
+
+        def num(v):
+            try:
+                return float(v)
+            except ValueError:
+                return 0.0
+
+        out.append((when, fam, num(r[i_moving]) / 3600, num(r[i_dist]) / 1000, num(r[i_elev])))
+    return out
+
+
+def build(acts):
+    years = list(range(min(a[0].year for a in acts), max(a[0].year for a in acts) + 1))
+    hours = defaultdict(lambda: defaultdict(float))
+    for when, fam, h, _, _ in acts:
+        hours[fam][when.year] += h
+    peak = max(v for fam in hours.values() for v in fam.values())
+    last_year = years[-1]
+    last_date = max(a[0] for a in acts)
+
+    rows = []
+    for fam, _ in FAMILIES:
+        if fam not in hours:
+            continue
+        total = sum(hours[fam].values())
+        bars = []
+        for y in years:
+            h = hours[fam].get(y, 0.0)
+            pct = 0 if h < 0.5 else max(4.0, h / peak * 100)
+            note = " so far" if y == last_year else ""
+            tip = f"{fam}, {y}{note}: {h:.0f} hours" if h >= 0.5 else f"{fam}, {y}: none"
+            cls = "bar now" if y == last_year else "bar"
+            bars.append(f'<span class="{cls}" style="height:{pct:.1f}%" title="{html.escape(tip)}"></span>')
+        rows.append(
+            f'<div class="row"><span class="name">{fam}</span>'
+            f'<span class="bars" role="presentation">{"".join(bars)}</span>'
+            f'<span class="sum">{total:,.0f}{NBSP}h</span></div>'
+        )
+
+    axis = "".join(
+        f'<span>{y if y in (years[0], 2020, last_year) else ""}</span>' for y in years
+    )
+
+    # Plain table of the same numbers.
+    head = "".join(f"<th scope=\"col\">{y}</th>" for y in years)
+    body = "".join(
+        f'<tr><th scope="row">{fam}</th>'
+        + "".join(f"<td>{hours[fam].get(y, 0):.0f}</td>" for y in years)
+        + "</tr>"
+        for fam, _ in FAMILIES if fam in hours
+    )
+
+    n = len(acts)
+    days = len({a[0].date() for a in acts})
+    km = sum(a[3] for a in acts)
+    elev = sum(a[4] for a in acts)
+    total_h = sum(a[2] for a in acts)
+    return dict(
+        rows="\n".join(rows), axis=axis, head=head, body=body,
+        first=years[0], last=last_year,
+        n=f"{n:,}", days=f"{days:,}", km=f"{km:,.0f}", elev=f"{elev:,.0f}", hours=f"{total_h:,.0f}",
+        updated=last_date.strftime("%B %Y"),
+    )
+
+
+TEMPLATE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playing outside · Alexandre Uribe</title>
+<meta name="description" content="Hours outside per year, from Alex Uribe's Strava, {first} to {last}.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{{--bg:#F6F5F1;--ink:#16181A;--muted:#5C5E5D;--line:#DEDCD5;--bar:#7A7C79}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#131415;--ink:#ECEAE4;--muted:#A3A29C;--line:#2C2D2F;--bar:#8E8D88}}}}
+*{{box-sizing:border-box}}
+html{{-webkit-text-size-adjust:100%}}
+body{{margin:0;background:var(--bg);color:var(--ink);font:clamp(17px,0.6vw + 14.5px,19px)/1.6 'Schibsted Grotesk',system-ui,sans-serif}}
+main{{max-width:calc(36em + 48px);margin:0 auto;padding:72px 24px 64px}}
+a{{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:var(--muted)}}
+a:hover{{opacity:.7}}
+.back{{font:500 13px 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);text-decoration:none}}
+h1{{margin:40px 0 12px;font-size:28px;font-weight:600;letter-spacing:-.015em;line-height:1.2}}
+p{{margin:0 0 20px}}
+.mono{{font:13px/1.6 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
+.chart{{margin:36px 0 12px}}
+.row,.axis{{display:grid;grid-template-columns:7.5rem 1fr 4rem;align-items:end;gap:0 14px}}
+.row{{padding:10px 0 0}}
+.name{{font-size:15px;line-height:1;padding-bottom:1px}}
+.sum{{font:12px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;padding-bottom:1px}}
+.bars{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;align-items:end;height:34px;border-bottom:1px solid var(--line)}}
+.bar{{display:block;background:var(--bar);border-radius:2px 2px 0 0;min-height:0}}
+.bar.now{{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,transparent 2px 4px)}}
+.axis{{padding-top:6px}}
+.axis .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:11px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
+.axis .years span:last-child{{text-align:right}}
+details{{margin:24px 0 40px}}
+summary{{cursor:pointer;font:500 13px 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
+.table{{overflow-x:auto;margin-top:12px}}
+table{{border-collapse:collapse;font:12px 'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}}
+th,td{{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}}
+th[scope=row]{{text-align:left;font-weight:500}}
+th[scope=col]{{color:var(--muted);font-weight:500}}
+footer{{margin-top:72px}}
+@media (max-width:480px){{.row,.axis{{grid-template-columns:5.6rem 1fr 3.2rem;gap:0 10px}}.name{{font-size:14px}}.bars,.axis .years{{gap:2px}}main{{padding-top:48px}}}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="../">← Alex</a>
+<h1>Playing outside</h1>
+<p>Hours outside each year, from {first} to now, as logged on Strava. Biking and running came first, then climbing; these days it’s mostly walks.</p>
+
+<div class="chart" aria-label="Hours per year by activity, {first} to {last}. The same numbers are in the table below.">
+{rows}
+<div class="axis" aria-hidden="true"><span></span><span class="years">{axis}</span><span></span></div>
+</div>
+<p class="mono">Each bar is one year, on the same scale across rows. {last} is striped because it isn’t over yet.</p>
+
+<details>
+<summary>The numbers (hours)</summary>
+<div class="table"><table><thead><tr><th></th>{head}</tr></thead><tbody>{body}</tbody></table></div>
+</details>
+
+<p class="mono">{n} activities on {days} days · {hours} hours · {km} km · {elev} m climbed</p>
+
+<footer class="mono">Updated {updated}. Indoor workouts are left out.</footer>
+</main>
+</body>
+</html>
+"""
+
+
+def main():
+    acts = load(sys.argv[1])
+    d = build(acts)
+    ncols = d["last"] - d["first"] + 1
+    out = ROOT / "outside" / "index.html"
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(TEMPLATE.format(ncols=ncols, **d), encoding="utf-8")
+    print(f"wrote {out} ({d['n']} activities, {d['first']}-{d['last']})")
+
+
+if __name__ == "__main__":
+    main()
