@@ -115,6 +115,19 @@ def build(acts):
         for fam, _ in FAMILIES if fam in hours
     )
 
+    # Tiny inline sparkline: total hours per year, all families.
+    per_year = [sum(hours[f].get(y, 0.0) for f in hours) for y in years]
+    top = max(per_year) or 1
+    bw, gap, sh = 3, 1, 16
+    rects = []
+    for k, (y, v) in enumerate(zip(years, per_year)):
+        bh = 0 if v < 0.5 else max(1.5, v / top * sh)
+        op = ' opacity=".45"' if y == last_year else ""
+        rects.append(f'<rect x="{k * (bw + gap)}" y="{sh - bh:.1f}" width="{bw}" height="{bh:.1f}" rx=".6"{op}/>')
+    spark_w = len(years) * (bw + gap) - gap
+    spark = (f'<svg class="spark" viewBox="0 0 {spark_w} {sh}" aria-hidden="true" focusable="false">'
+             + "".join(rects) + "</svg>")
+
     n = len(acts)
     days = len({a[0].date() for a in acts})
     km = sum(a[3] for a in acts)
@@ -125,6 +138,7 @@ def build(acts):
         first=years[0], last=last_year,
         n=f"{n:,}", days=f"{days:,}", km=f"{km:,.0f}", elev=f"{elev:,.0f}", hours=f"{total_h:,.0f}",
         updated=last_date.strftime("%B %Y"),
+        spark=spark,
         days_full=f"{total_h / 24:.0f}",
         sea_mia=f"{km / SEATTLE_MIAMI_KM:.1f}",
         everests=f"{elev / EVEREST_M:.0f}",
@@ -229,8 +243,10 @@ CARD_CSS = """/* outside-card */
 .oc .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
 .oc .years span:last-child{{text-align:right}}
 .oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
+.spark{{display:inline-block;height:.9em;width:2.65em;margin-left:.35em;vertical-align:-.08em;fill:var(--bar);transition:opacity .25s ease,width .25s ease,margin .25s ease}}
+#outside-toggle[aria-expanded="true"] .spark{{opacity:0;width:0;margin-left:0}}
 #outside-toggle[role="button"]{{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}}
-@media (prefers-reduced-motion:reduce){{.oc,.oc-inner{{transition:none}}}}
+@media (prefers-reduced-motion:reduce){{.oc,.oc-inner,.spark{{transition:none}}}}
 @media (max-width:480px){{.oc .row,.oc .axis{{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}}.oc .bars,.oc .years{{gap:2px}}.oc-inner{{padding:14px 12px 12px}}}}
 /* /outside-card */"""
 
@@ -270,6 +286,7 @@ def main():
     text = home.read_text(encoding="utf-8")
     text = replace_between(text, "/* outside-card */", "/* /outside-card */", CARD_CSS.format(ncols=ncols))
     text = replace_between(text, "<!-- outside-card -->", "<!-- /outside-card -->", CARD_HTML.format(**d))
+    text = replace_between(text, "<!-- spark -->", "<!-- /spark -->", "<!-- spark -->" + d["spark"] + "<!-- /spark -->")
     home.write_text(text, encoding="utf-8")
     print(f"wrote {out} and the homepage card ({d['n']} activities, {d['first']}-{d['last']})")
 
