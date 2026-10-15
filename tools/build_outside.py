@@ -7,6 +7,7 @@ the page. No names, notes, dates of single activities, or locations are used.
 """
 import csv
 import html
+import math
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -25,6 +26,16 @@ FAMILIES = [
     ("Walking", {"Walk"}),
     ("Water", {"Kayaking", "Stand Up Paddling", "Rowing", "Swim", "Canoeing"}),
 ]
+EVEREST_M = 8849
+
+
+def _great_circle_km(a, b):
+    (la1, lo1), (la2, lo2) = [(math.radians(x), math.radians(y)) for x, y in (a, b)]
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6371 * math.asin(math.sqrt(h))
+
+
+SEATTLE_MIAMI_KM = _great_circle_km((47.61, -122.33), (25.76, -80.19))
 FAMILY_OF = {t: name for name, types in FAMILIES for t in types}
 
 
@@ -114,6 +125,9 @@ def build(acts):
         first=years[0], last=last_year,
         n=f"{n:,}", days=f"{days:,}", km=f"{km:,.0f}", elev=f"{elev:,.0f}", hours=f"{total_h:,.0f}",
         updated=last_date.strftime("%B %Y"),
+        days_full=f"{total_h / 24:.0f}",
+        sea_mia=f"{km / SEATTLE_MIAMI_KM:.1f}",
+        everests=f"{elev / EVEREST_M:.0f}",
     )
 
 
@@ -161,6 +175,8 @@ th,td{{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line);whit
 th[scope=row]{{text-align:left;font-weight:500}}
 th[scope=col]{{color:var(--muted);font-weight:500}}
 footer{{margin-top:72px}}
+.totals{{list-style:none;margin:0;padding:0}}
+.totals li{{padding:2px 0}}
 @media (max-width:480px){{.row,.axis{{grid-template-columns:5.6rem 1fr 3.2rem;gap:0 10px}}.name{{font-size:14px}}.bars,.axis .years{{gap:2px}}main{{padding-top:48px}}}}
 </style>
 </head>
@@ -181,7 +197,12 @@ footer{{margin-top:72px}}
 <div class="table"><table><thead><tr><th></th>{head}</tr></thead><tbody>{body}</tbody></table></div>
 </details>
 
-<p class="mono">{n} activities on {days} days · {hours} hours · {km} km · {elev} m climbed</p>
+<ul class="totals mono">
+<li>{n} activities on {days} days</li>
+<li>{hours} hours, about {days_full} full days</li>
+<li>{km} km, Seattle to Miami about {sea_mia} times</li>
+<li>{elev} m climbed, about {everests} Everests</li>
+</ul>
 
 <footer class="mono">Updated {updated}. Indoor workouts are left out.</footer>
 </main>
