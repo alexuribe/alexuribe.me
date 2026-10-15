@@ -243,7 +243,7 @@ CARD_CSS = """/* outside-card */
 .oc .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
 .oc .years span:last-child{{text-align:right}}
 .oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
-.spark-link{{display:inline-block;margin-top:.35em;line-height:0;text-decoration:none;transition:opacity .25s ease}}
+.spark-link{{display:inline-block;margin-top:.6em;line-height:0;text-decoration:none;transition:opacity .25s ease}}
 .spark{{display:block;height:1.1em;width:3.25em;fill:var(--bar)}}
 .oc-open .spark-link{{display:none}}
 #outside-toggle[role="button"]{{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}}
