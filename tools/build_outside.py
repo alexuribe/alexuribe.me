@@ -23,7 +23,7 @@ FAMILIES = [
     ("Skiing", {"Alpine Ski", "Backcountry Ski", "Nordic Ski", "Snowboard"}),
     ("Biking", {"Ride", "E-Bike Ride", "Gravel Ride", "Mountain Bike Ride"}),
     ("Walking", {"Walk"}),
-    ("On the water", {"Kayaking", "Stand Up Paddling", "Rowing", "Swim", "Canoeing"}),
+    ("Water", {"Kayaking", "Stand Up Paddling", "Rowing", "Swim", "Canoeing"}),
 ]
 FAMILY_OF = {t: name for name, types in FAMILIES for t in types}
 
@@ -150,7 +150,7 @@ p{{margin:0 0 20px}}
 .bars{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;align-items:end;height:34px;border-bottom:1px solid var(--line)}}
 .bar{{display:block;background:var(--bar);border-radius:2px 2px 0 0;min-height:0}}
 .bar.now{{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,transparent 2px 4px)}}
-.axis{{padding-top:6px}}
+.axis{{padding-bottom:2px}}
 .axis .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:11px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
 .axis .years span:last-child{{text-align:right}}
 details{{margin:24px 0 40px}}
@@ -171,8 +171,8 @@ footer{{margin-top:72px}}
 <p>Hours outside each year, from {first} to now, as logged on Strava. Biking and running came first, then climbing; these days it’s mostly walks.</p>
 
 <div class="chart" aria-label="Hours per year by activity, {first} to {last}. The same numbers are in the table below.">
-{rows}
 <div class="axis" aria-hidden="true"><span></span><span class="years">{axis}</span><span></span></div>
+{rows}
 </div>
 <p class="mono">Each bar is one year, on the same scale across rows. {last} is striped because it isn’t over yet.</p>
 
@@ -190,6 +190,53 @@ footer{{margin-top:72px}}
 """
 
 
+# Fold-out card on the homepage. Injected between markers in index.html.
+CARD_CSS = """/* outside-card */
+.oc{{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s ease}}
+.oc.open{{grid-template-rows:1fr}}
+.oc>div{{min-height:0;overflow:hidden}}
+.oc-inner{{border:1px solid var(--line);border-radius:12px;padding:16px 18px 14px;margin:0 0 24px;visibility:hidden;transition:visibility 0s .35s}}
+.oc.open .oc-inner{{visibility:visible;transition:visibility 0s}}
+.oc .row,.oc .axis{{display:grid;grid-template-columns:6.2rem 1fr 3.4rem;align-items:end;gap:0 12px}}
+.oc .row{{padding:7px 0 0}}
+.oc .name{{font-size:14px;line-height:1;padding-bottom:1px}}
+.oc .sum{{font:11px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;padding-bottom:1px}}
+.oc .bars{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;align-items:end;height:26px;border-bottom:1px solid var(--line)}}
+.oc .bar{{display:block;background:var(--bar);border-radius:2px 2px 0 0}}
+.oc .bar.now{{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,transparent 2px 4px)}}
+.oc .axis{{padding-bottom:1px}}
+.oc .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
+.oc .years span:last-child{{text-align:right}}
+.oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
+#outside-toggle[role="button"]{{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}}
+@media (prefers-reduced-motion:reduce){{.oc,.oc-inner{{transition:none}}}}
+@media (max-width:480px){{.oc .row,.oc .axis{{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}}.oc .bars,.oc .years{{gap:2px}}.oc-inner{{padding:14px 12px 12px}}}}
+/* /outside-card */"""
+
+CARD_HTML = """<!-- outside-card -->
+<div class="oc" id="outside-card">
+<div><div class="oc-inner" aria-label="Hours outside per year by activity, {first} to {last}">
+<div class="axis" aria-hidden="true"><span></span><span class="years">{axis}</span><span></span></div>
+{rows}
+<p class="oc-foot"><span>{hours} hours since {first} · {last} so far is striped</span><a href="outside/">Numbers</a></p>
+</div></div>
+</div>
+<script>
+(function(){{var a=document.getElementById('outside-toggle'),c=document.getElementById('outside-card');if(!a||!c)return;
+a.setAttribute('role','button');a.setAttribute('aria-expanded','false');a.setAttribute('aria-controls','outside-card');
+function t(e){{e.preventDefault();var o=a.getAttribute('aria-expanded')!=='true';a.setAttribute('aria-expanded',String(o));c.classList.toggle('open',o);}}
+a.addEventListener('click',t);a.addEventListener('keydown',function(e){{if(e.key===' ')t(e);}});}})();
+</script>
+<!-- /outside-card -->"""
+
+
+def replace_between(text, start, end, new):
+    i, j = text.find(start), text.find(end)
+    if i < 0 or j < 0:
+        raise SystemExit(f"markers {start!r} / {end!r} not found in index.html")
+    return text[:i] + new + text[j + len(end):]
+
+
 def main():
     acts = load(sys.argv[1])
     d = build(acts)
@@ -197,7 +244,13 @@ def main():
     out = ROOT / "outside" / "index.html"
     out.parent.mkdir(exist_ok=True)
     out.write_text(TEMPLATE.format(ncols=ncols, **d), encoding="utf-8")
-    print(f"wrote {out} ({d['n']} activities, {d['first']}-{d['last']})")
+
+    home = ROOT / "index.html"
+    text = home.read_text(encoding="utf-8")
+    text = replace_between(text, "/* outside-card */", "/* /outside-card */", CARD_CSS.format(ncols=ncols))
+    text = replace_between(text, "<!-- outside-card -->", "<!-- /outside-card -->", CARD_HTML.format(**d))
+    home.write_text(text, encoding="utf-8")
+    print(f"wrote {out} and the homepage card ({d['n']} activities, {d['first']}-{d['last']})")
 
 
 if __name__ == "__main__":

@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#F6F5F1;--ink:#16181A;--muted:#5C5E5D}
-@media (prefers-color-scheme:dark){:root{--bg:#131415;--ink:#ECEAE4;--muted:#A3A29C}}
+:root{--bg:#F6F5F1;--ink:#16181A;--muted:#5C5E5D;--line:#DEDCD5;--bar:#7A7C79}
+@media (prefers-color-scheme:dark){:root{--bg:#131415;--ink:#ECEAE4;--muted:#A3A29C;--line:#2C2D2F;--bar:#8E8D88}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:clamp(17px,0.6vw + 14.5px,19px)/1.6 'Schibsted Grotesk',system-ui,sans-serif}
@@ -35,6 +35,27 @@ h2{margin:0 0 12px;font:500 13px/1.4 'IBM Plex Mono',ui-monospace,monospace;colo
 .lately p{margin-bottom:8px}
 .date{margin:0;font:13px 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}
 .links{display:flex;flex-wrap:wrap;gap:8px 24px}
+/* outside-card */
+.oc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s ease}
+.oc.open{grid-template-rows:1fr}
+.oc>div{min-height:0;overflow:hidden}
+.oc-inner{border:1px solid var(--line);border-radius:12px;padding:16px 18px 14px;margin:0 0 24px;visibility:hidden;transition:visibility 0s .35s}
+.oc.open .oc-inner{visibility:visible;transition:visibility 0s}
+.oc .row,.oc .axis{display:grid;grid-template-columns:6.2rem 1fr 3.4rem;align-items:end;gap:0 12px}
+.oc .row{padding:7px 0 0}
+.oc .name{font-size:14px;line-height:1;padding-bottom:1px}
+.oc .sum{font:11px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;padding-bottom:1px}
+.oc .bars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;align-items:end;height:26px;border-bottom:1px solid var(--line)}
+.oc .bar{display:block;background:var(--bar);border-radius:2px 2px 0 0}
+.oc .bar.now{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,transparent 2px 4px)}
+.oc .axis{padding-bottom:1px}
+.oc .years{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}
+.oc .years span:last-child{text-align:right}
+.oc-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}
+#outside-toggle[role="button"]{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.oc,.oc-inner{transition:none}}
+@media (max-width:480px){.oc .row,.oc .axis{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}.oc .bars,.oc .years{gap:2px}.oc-inner{padding:14px 12px 12px}}
+/* /outside-card */
 footer{margin-top:96px;font:12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}
 </style>
 </head>
@@ -46,7 +67,28 @@ footer{margin-top:96px;font:12px 'IBM Plex Mono',ui-monospace,monospace;color:va
 
 <p>I live in Seattle and work on data and analytics at <a href="https://pharmacy.amazon.com">Amazon Pharmacy</a>. I joined <a href="https://www.pillpack.com">PillPack</a> in 2018, just before Amazon closed the deal, and started on the phones with customers.</p>
 <p>Before that, I worked at two startups: one building connected hardware and one helping people find a local oral health clinician. Both were attempts at zero to one; PillPack was my first look at one to n. I also ran a design-thinking and rapid-prototyping program at <a class="nw" href="https://theideacenter.co">The Idea Center</a> at Miami Dade College.</p>
-<p>When I’m not working, I like tinkering with technology and <a href="outside/">playing outside</a>: hiking, running, climbing, and skiing.</p>
+<p>When I’m not working, I like tinkering with technology and <a href="outside/" id="outside-toggle">playing outside</a>: hiking, running, climbing, and skiing.</p>
+<!-- outside-card -->
+<div class="oc" id="outside-card">
+<div><div class="oc-inner" aria-label="Hours outside per year by activity, 2015 to 2026">
+<div class="axis" aria-hidden="true"><span></span><span class="years"><span>2015</span><span></span><span></span><span></span><span></span><span>2020</span><span></span><span></span><span></span><span></span><span></span><span>2026</span></span><span></span></div>
+<div class="row"><span class="name">Hiking</span><span class="bars" role="presentation"><span class="bar" style="height:0.0%" title="Hiking, 2015: none"></span><span class="bar" style="height:12.8%" title="Hiking, 2016: 10 hours"></span><span class="bar" style="height:4.9%" title="Hiking, 2017: 4 hours"></span><span class="bar" style="height:31.8%" title="Hiking, 2018: 25 hours"></span><span class="bar" style="height:24.3%" title="Hiking, 2019: 19 hours"></span><span class="bar" style="height:27.5%" title="Hiking, 2020: 21 hours"></span><span class="bar" style="height:44.8%" title="Hiking, 2021: 35 hours"></span><span class="bar" style="height:64.6%" title="Hiking, 2022: 50 hours"></span><span class="bar" style="height:6.0%" title="Hiking, 2023: 5 hours"></span><span class="bar" style="height:8.5%" title="Hiking, 2024: 7 hours"></span><span class="bar" style="height:8.3%" title="Hiking, 2025: 6 hours"></span><span class="bar now" style="height:7.2%" title="Hiking, 2026 so far: 6 hours"></span></span><span class="sum">187 h</span></div>
+<div class="row"><span class="name">Running</span><span class="bars" role="presentation"><span class="bar" style="height:18.4%" title="Running, 2015: 14 hours"></span><span class="bar" style="height:100.0%" title="Running, 2016: 78 hours"></span><span class="bar" style="height:43.6%" title="Running, 2017: 34 hours"></span><span class="bar" style="height:7.6%" title="Running, 2018: 6 hours"></span><span class="bar" style="height:6.3%" title="Running, 2019: 5 hours"></span><span class="bar" style="height:33.8%" title="Running, 2020: 26 hours"></span><span class="bar" style="height:24.3%" title="Running, 2021: 19 hours"></span><span class="bar" style="height:38.9%" title="Running, 2022: 30 hours"></span><span class="bar" style="height:16.3%" title="Running, 2023: 13 hours"></span><span class="bar" style="height:23.4%" title="Running, 2024: 18 hours"></span><span class="bar" style="height:15.3%" title="Running, 2025: 12 hours"></span><span class="bar now" style="height:5.1%" title="Running, 2026 so far: 4 hours"></span></span><span class="sum">258 h</span></div>
+<div class="row"><span class="name">Climbing</span><span class="bars" role="presentation"><span class="bar" style="height:0.0%" title="Climbing, 2015: none"></span><span class="bar" style="height:0.0%" title="Climbing, 2016: none"></span><span class="bar" style="height:0.0%" title="Climbing, 2017: none"></span><span class="bar" style="height:0.0%" title="Climbing, 2018: none"></span><span class="bar" style="height:0.0%" title="Climbing, 2019: none"></span><span class="bar" style="height:9.6%" title="Climbing, 2020: 7 hours"></span><span class="bar" style="height:24.2%" title="Climbing, 2021: 19 hours"></span><span class="bar" style="height:84.7%" title="Climbing, 2022: 66 hours"></span><span class="bar" style="height:51.1%" title="Climbing, 2023: 40 hours"></span><span class="bar" style="height:38.7%" title="Climbing, 2024: 30 hours"></span><span class="bar" style="height:10.6%" title="Climbing, 2025: 8 hours"></span><span class="bar now" style="height:4.0%" title="Climbing, 2026 so far: 3 hours"></span></span><span class="sum">173 h</span></div>
+<div class="row"><span class="name">Skiing</span><span class="bars" role="presentation"><span class="bar" style="height:0.0%" title="Skiing, 2015: none"></span><span class="bar" style="height:0.0%" title="Skiing, 2016: none"></span><span class="bar" style="height:0.0%" title="Skiing, 2017: none"></span><span class="bar" style="height:0.0%" title="Skiing, 2018: none"></span><span class="bar" style="height:0.0%" title="Skiing, 2019: none"></span><span class="bar" style="height:14.1%" title="Skiing, 2020: 11 hours"></span><span class="bar" style="height:4.0%" title="Skiing, 2021: 2 hours"></span><span class="bar" style="height:23.2%" title="Skiing, 2022: 18 hours"></span><span class="bar" style="height:10.3%" title="Skiing, 2023: 8 hours"></span><span class="bar" style="height:5.3%" title="Skiing, 2024: 4 hours"></span><span class="bar" style="height:4.0%" title="Skiing, 2025: 2 hours"></span><span class="bar now" style="height:0.0%" title="Skiing, 2026: none"></span></span><span class="sum">45 h</span></div>
+<div class="row"><span class="name">Biking</span><span class="bars" role="presentation"><span class="bar" style="height:55.1%" title="Biking, 2015: 43 hours"></span><span class="bar" style="height:75.3%" title="Biking, 2016: 58 hours"></span><span class="bar" style="height:57.9%" title="Biking, 2017: 45 hours"></span><span class="bar" style="height:32.7%" title="Biking, 2018: 25 hours"></span><span class="bar" style="height:14.9%" title="Biking, 2019: 12 hours"></span><span class="bar" style="height:19.7%" title="Biking, 2020: 15 hours"></span><span class="bar" style="height:7.1%" title="Biking, 2021: 6 hours"></span><span class="bar" style="height:13.2%" title="Biking, 2022: 10 hours"></span><span class="bar" style="height:4.0%" title="Biking, 2023: 2 hours"></span><span class="bar" style="height:16.7%" title="Biking, 2024: 13 hours"></span><span class="bar" style="height:29.0%" title="Biking, 2025: 23 hours"></span><span class="bar now" style="height:5.3%" title="Biking, 2026 so far: 4 hours"></span></span><span class="sum">256 h</span></div>
+<div class="row"><span class="name">Walking</span><span class="bars" role="presentation"><span class="bar" style="height:0.0%" title="Walking, 2015: none"></span><span class="bar" style="height:0.0%" title="Walking, 2016: none"></span><span class="bar" style="height:21.4%" title="Walking, 2017: 17 hours"></span><span class="bar" style="height:4.2%" title="Walking, 2018: 3 hours"></span><span class="bar" style="height:0.0%" title="Walking, 2019: none"></span><span class="bar" style="height:0.0%" title="Walking, 2020: none"></span><span class="bar" style="height:20.0%" title="Walking, 2021: 16 hours"></span><span class="bar" style="height:4.0%" title="Walking, 2022: 3 hours"></span><span class="bar" style="height:32.1%" title="Walking, 2023: 25 hours"></span><span class="bar" style="height:16.9%" title="Walking, 2024: 13 hours"></span><span class="bar" style="height:7.0%" title="Walking, 2025: 5 hours"></span><span class="bar now" style="height:59.4%" title="Walking, 2026 so far: 46 hours"></span></span><span class="sum">128 h</span></div>
+<div class="row"><span class="name">Water</span><span class="bars" role="presentation"><span class="bar" style="height:0.0%" title="Water, 2015: none"></span><span class="bar" style="height:4.0%" title="Water, 2016: 1 hours"></span><span class="bar" style="height:0.0%" title="Water, 2017: none"></span><span class="bar" style="height:0.0%" title="Water, 2018: none"></span><span class="bar" style="height:0.0%" title="Water, 2019: none"></span><span class="bar" style="height:6.3%" title="Water, 2020: 5 hours"></span><span class="bar" style="height:5.6%" title="Water, 2021: 4 hours"></span><span class="bar" style="height:25.1%" title="Water, 2022: 19 hours"></span><span class="bar" style="height:0.0%" title="Water, 2023: none"></span><span class="bar" style="height:4.0%" title="Water, 2024: 1 hours"></span><span class="bar" style="height:4.0%" title="Water, 2025: 2 hours"></span><span class="bar now" style="height:0.0%" title="Water, 2026: none"></span></span><span class="sum">33 h</span></div>
+<p class="oc-foot"><span>1,080 hours since 2015 · 2026 so far is striped</span><a href="outside/">Numbers</a></p>
+</div></div>
+</div>
+<script>
+(function(){var a=document.getElementById('outside-toggle'),c=document.getElementById('outside-card');if(!a||!c)return;
+a.setAttribute('role','button');a.setAttribute('aria-expanded','false');a.setAttribute('aria-controls','outside-card');
+function t(e){e.preventDefault();var o=a.getAttribute('aria-expanded')!=='true';a.setAttribute('aria-expanded',String(o));c.classList.toggle('open',o);}
+a.addEventListener('click',t);a.addEventListener('keydown',function(e){if(e.key===' ')t(e);});})();
+</script>
+<!-- /outside-card -->
 
 <section class="lately" aria-labelledby="lately-h">
 <h2 id="lately-h">Lately</h2>
