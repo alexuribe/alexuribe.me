@@ -243,10 +243,11 @@ CARD_CSS = """/* outside-card */
 .oc .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
 .oc .years span:last-child{{text-align:right}}
 .oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
-.spark{{display:inline-block;height:.9em;width:2.65em;margin-left:.35em;vertical-align:-.08em;fill:var(--bar);transition:opacity .25s ease,width .25s ease,margin .25s ease}}
-#outside-toggle[aria-expanded="true"] .spark{{opacity:0;width:0;margin-left:0}}
+.spark-link{{display:inline-block;margin-top:.35em;line-height:0;text-decoration:none;transition:opacity .25s ease}}
+.spark{{display:block;height:1.1em;width:3.25em;fill:var(--bar)}}
+.oc-open .spark-link{{display:none}}
 #outside-toggle[role="button"]{{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}}
-@media (prefers-reduced-motion:reduce){{.oc,.oc-inner,.spark{{transition:none}}}}
+@media (prefers-reduced-motion:reduce){{.oc,.oc-inner,.spark-link{{transition:none}}}}
 @media (max-width:480px){{.oc .row,.oc .axis{{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}}.oc .bars,.oc .years{{gap:2px}}.oc-inner{{padding:14px 12px 12px}}}}
 /* /outside-card */"""
 
@@ -261,8 +262,9 @@ CARD_HTML = """<!-- outside-card -->
 <script>
 (function(){{var a=document.getElementById('outside-toggle'),c=document.getElementById('outside-card');if(!a||!c)return;
 a.setAttribute('role','button');a.setAttribute('aria-expanded','false');a.setAttribute('aria-controls','outside-card');
-function t(e){{e.preventDefault();var o=a.getAttribute('aria-expanded')!=='true';a.setAttribute('aria-expanded',String(o));c.classList.toggle('open',o);}}
-a.addEventListener('click',t);a.addEventListener('keydown',function(e){{if(e.key===' ')t(e);}});}})();
+var sp=document.querySelector('.spark-link');
+function t(e){{e.preventDefault();var o=a.getAttribute('aria-expanded')!=='true';a.setAttribute('aria-expanded',String(o));c.classList.toggle('open',o);document.documentElement.classList.toggle('oc-open',o);}}
+a.addEventListener('click',t);if(sp)sp.addEventListener('click',t);a.addEventListener('keydown',function(e){{if(e.key===' ')t(e);}});}})();
 </script>
 <!-- /outside-card -->"""
 
@@ -286,7 +288,7 @@ def main():
     text = home.read_text(encoding="utf-8")
     text = replace_between(text, "/* outside-card */", "/* /outside-card */", CARD_CSS.format(ncols=ncols))
     text = replace_between(text, "<!-- outside-card -->", "<!-- /outside-card -->", CARD_HTML.format(**d))
-    text = replace_between(text, "<!-- spark -->", "<!-- /spark -->", "<!-- spark -->" + d["spark"] + "<!-- /spark -->")
+    text = replace_between(text, "<!-- spark -->", "<!-- /spark -->", "<!-- spark --><br><a class=\"spark-link\" href=\"outside/\" tabindex=\"-1\" aria-hidden=\"true\" title=\"Hours outside per year\">" + d["spark"] + "</a><!-- /spark -->")
     home.write_text(text, encoding="utf-8")
     print(f"wrote {out} and the homepage card ({d['n']} activities, {d['first']}-{d['last']})")
 
