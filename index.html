@@ -25,7 +25,14 @@ main{max-width:calc(36em + 48px);margin:0 auto;padding:96px 24px 64px}
 @media (max-width:480px){main{padding-top:56px}}
 a{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px}
 a:hover{opacity:.7}
-.photo{display:block;width:168px;height:168px;object-fit:cover;object-position:40% 45%;border-radius:12px;margin:0 0 32px}
+.photo{display:block;width:168px;height:168px;object-fit:cover;object-position:40% 45%;border-radius:12px}
+.tree{all:unset;display:block;width:168px;margin:0 0 32px;border-radius:12px;cursor:pointer}
+.tree:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+main{transition:opacity .4s ease}
+.up main{opacity:0;pointer-events:none}
+.up body{cursor:pointer}
+.climb{position:fixed;left:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));right:24px;max-width:30em;margin:0;font:13px/1.6 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){main{transition:none}}
 h1{margin:0 0 32px;font-size:28px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
 .soft{opacity:.35}
 p{margin:0 0 20px}
@@ -57,12 +64,16 @@ h2{margin:0 0 12px;font:500 13px/1.4 'IBM Plex Mono',ui-monospace,monospace;colo
 @media (prefers-reduced-motion:reduce){.oc,.oc-inner{transition:none}}
 @media (max-width:480px){.oc .row,.oc .axis{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}.oc .bars,.oc .years{gap:2px}.oc-inner{padding:14px 12px 12px}}
 /* /outside-card */
+#bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;pointer-events:none}
+html{background:var(--bg)}
+body{background:transparent}
 footer{margin-top:96px;font:12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}
 </style>
 </head>
 <body>
+<canvas id="bg" aria-hidden="true"></canvas>
 <main>
-<img class="photo" src="img/alex.jpg" width="168" height="168" alt="Alex climbing a palm tree under a blue sky">
+<button class="tree" type="button" aria-pressed="false" aria-controls="bg" title="Climb up"><img class="photo" src="img/alex.jpg" width="168" height="168" alt="Alex climbing a palm tree. Press to climb up and see the map behind this page."></button>
 
 <h1>Hi, I’m Alex<span class="soft">andre</span>.</h1>
 
@@ -106,7 +117,9 @@ a.addEventListener('click',t);a.addEventListener('keydown',function(e){if(e.key=
 </div>
 </section>
 
-<footer>© 2026</footer>
+<footer>© 2026 · There’s a map behind this page. The palm tree knows.</footer>
 </main>
+<p class="climb" id="climb" role="status" hidden>From up here: 23 countries and about 1,100 places, all from my photos. Seattle’s circled. Tap to climb down.</p>
+<script src="places.js" defer></script>
 </body>
 </html>
