@@ -1,6 +1,6 @@
 """Build outside/index.html from a Strava export's activities.csv.
 
-Usage: python3 -I tools/build_outside.py ~/Downloads/export_XXXX/activities.csv
+Usage: python3 -I tools/build_outside.py ~/Downloads/export_XXXX/activities.csv [~/Downloads/ticks.csv]
 
 Only yearly hour totals per activity family and a few lifetime totals end up in
 the page. No names, notes, dates of single activities, or locations are used.
@@ -131,6 +131,71 @@ def build(acts):
     )
 
 
+def climbing(path):
+    """Summarize a Mountain Project tick export. Only totals reach the site:
+    no route names, notes, partners or dates of single climbs."""
+    import re
+    from collections import Counter
+    with open(path, newline="", encoding="utf-8") as f:
+        ticks = [r for r in csv.DictReader(f) if r.get("Date")]
+    if not ticks:
+        return None
+
+    def grade(r):
+        m = re.match(r"5\.(\d+)([abcd]?[+-]?)", r["Rating"].strip())
+        return (int(m.group(1)), m.group(1) + m.group(2)) if m else (None, None)
+
+    buckets = [("5.12", lambda n: n >= 12), ("5.11", lambda n: n == 11), ("5.10", lambda n: n == 10),
+               ("5.9", lambda n: n == 9), ("5.8", lambda n: n == 8), ("5.7 and under", lambda n: n <= 7)]
+    led, other = Counter(), Counter()
+    hardest = None
+    for r in ticks:
+        n, label = grade(r)
+        if n is None:
+            continue
+        name = next(b for b, ok in buckets if ok(n))
+        is_lead = r["Style"].strip() == "Lead"
+        (led if is_lead else other)[name] += 1
+        if is_lead and r["Lead Style"].strip() != "Fell/Hung":
+            code = int(r["Rating Code"] or 0)
+            if hardest is None or code > hardest[0]:
+                hardest = (code, "5." + label)
+
+    regions = Counter()
+    states, countries = set(), set()
+    for r in ticks:
+        parts = [x.strip() for x in r["Location"].split(">")]
+        if parts[0] == "International":
+            countries.add(parts[2] if len(parts) > 2 else parts[1])
+        else:
+            states.add(parts[0])
+        regions[parts[3] if len(parts) > 3 else parts[-1]] += 1
+    top = [name for name, _ in regions.most_common(2)]
+    if len(top) == 2 and top[0].endswith(" Canyon") and top[1].endswith(" Canyon"):
+        a_, b_ = top[0][:-7].split(), top[1][:-7].split()
+        if a_[1:] == b_[1:]:  # "Big Cottonwood" + "Little Cottonwood" -> "Big and Little Cottonwood Canyons"
+            top = [f"{a_[0]} and {' '.join(b_)} Canyons"]
+    years = sorted(int(r["Date"][:4]) for r in ticks)
+    where = f"{len(states)} states" + (f" and {', '.join(sorted(countries))}" if countries else "")
+
+    peak = max(led[b] + other[b] for b, _ in buckets) or 1
+    rows = []
+    for b, _ in buckets:
+        l, o = led[b], other[b]
+        rows.append(
+            f'<div class="prow"><span class="name">{b}</span>'
+            f'<span class="pbar" title="{b}: {l} led, {o} top-rope or follow">'
+            f'<span class="lead" style="width:{l / peak * 100:.1f}%"></span>'
+            f'<span class="other" style="width:{o / peak * 100:.1f}%"></span></span>'
+            f'<span class="sum">{l + o}</span></div>'
+        )
+    return dict(
+        n=len(ticks), y0=years[0], y1=years[-1], where=where,
+        top=" and ".join(top), hardest=hardest[1] if hardest else "",
+        rows="\n".join(rows),
+    )
+
+
 TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -175,7 +240,7 @@ table{{border-collapse:collapse;font:12px 'IBM Plex Mono',ui-monospace,monospace
 th,td{{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}}
 th[scope=row]{{text-align:left;font-weight:500}}
 th[scope=col]{{color:var(--muted);font-weight:500}}
-footer{{margin-top:72px}}
+footer{{margin-top:72px}}\nh2{{margin:56px 0 12px;font-size:20px;font-weight:600;letter-spacing:-.01em}}\n.pyr{{margin:20px 0 12px}}\n.prow{{display:grid;grid-template-columns:7.5rem 1fr 4rem;align-items:center;gap:0 14px;padding:4px 0}}\n.pbar{{display:flex;height:14px;border-left:1px solid var(--line)}}\n.pbar .lead{{background:var(--bar)}}\n.pbar .other{{background:var(--bar);opacity:.35}}\n.prow .sum{{padding:0}}\n@media (max-width:480px){{.prow{{grid-template-columns:6.2rem 1fr 2.4rem;gap:0 10px}}}}
 .totals{{list-style:none;margin:0;padding:0}}
 .totals li{{padding:2px 0}}
 @media (max-width:480px){{.row,.axis{{grid-template-columns:5.6rem 1fr 3.2rem;gap:0 10px}}.name{{font-size:14px}}.bars,.axis .years{{gap:2px}}main{{padding-top:48px}}}}
@@ -205,6 +270,7 @@ footer{{margin-top:72px}}
 <li>{elev} m climbed, about {everests} Everests</li>
 </ul>
 
+{climb_page}
 <footer class="mono">Updated {updated}. Indoor workouts are left out.</footer>
 </main>
 </body>
@@ -229,7 +295,7 @@ CARD_CSS = """/* outside-card */
 .oc .axis{{padding-bottom:1px}}
 .oc .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
 .oc .years span:last-child{{text-align:right}}
-.oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
+.oc-climb{{margin:14px 0 0;font-size:14px;line-height:1.5}}\n.oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
 #outside-toggle[role="button"]{{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}}
 @media (prefers-reduced-motion:reduce){{.oc,.oc-inner{{transition:none}}}}
 @media (max-width:480px){{.oc .row,.oc .axis{{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}}.oc .bars,.oc .years{{gap:2px}}.oc-inner{{padding:14px 12px 12px}}}}
@@ -240,7 +306,7 @@ CARD_HTML = """<!-- outside-card -->
 <div><div class="oc-inner" aria-label="Hours outside per year by activity, {first} to {last}">
 <div class="axis" aria-hidden="true"><span></span><span class="years">{axis}</span><span></span></div>
 {rows}
-<p class="oc-foot"><span>{hours} hours since {first} · {last} so far is striped</span><a href="outside/">Numbers</a></p>
+{climb_card}<p class="oc-foot"><span>{hours} hours since {first} · {last} so far is striped</span><a href="outside/">Numbers</a></p>
 </div></div>
 </div>
 <script>
@@ -262,6 +328,17 @@ def replace_between(text, start, end, new):
 def main():
     acts = load(sys.argv[1])
     d = build(acts)
+    c = climbing(sys.argv[2]) if len(sys.argv) > 2 else None
+    d["climb_card"] = (
+        f'<p class="oc-climb">Climbing: {c["n"]} routes logged, {c["y0"]}–{c["y1"]}, in {c["where"]}. '
+        f'Hardest lead {c["hardest"]}.</p>\n' if c else ""
+    )
+    d["climb_page"] = (
+        f'<h2>Climbing</h2>\n<p>{c["n"]} routes logged on Mountain Project from {c["y0"]} to {c["y1"]}, '
+        f'mostly in {c["top"]}, across {c["where"]}. Hardest lead {c["hardest"]}.</p>\n'
+        f'<div class="pyr" aria-label="Routes by grade. Solid is led; light is top-rope or following.">\n{c["rows"]}\n</div>\n'
+        f'<p class="mono">Routes by grade. Solid: led. Light: top-rope or following.</p>\n' if c else ""
+    )
     ncols = d["last"] - d["first"] + 1
     out = ROOT / "outside" / "index.html"
     out.parent.mkdir(exist_ok=True)
