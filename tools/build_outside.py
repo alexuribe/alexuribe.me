@@ -295,7 +295,7 @@ CARD_CSS = """/* outside-card */
 .oc .axis{{padding-bottom:1px}}
 .oc .years{{display:grid;grid-template-columns:repeat({ncols},minmax(0,1fr));gap:3px;font:10.5px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap}}
 .oc .years span:last-child{{text-align:right}}
-.oc-climb{{margin:14px 0 0;font-size:14px;line-height:1.5}}\n.oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
+.oc-foot{{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:14px 0 0;font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}}
 #outside-toggle[role="button"]{{text-decoration-style:dotted;text-decoration-thickness:1.5px;cursor:pointer}}
 @media (prefers-reduced-motion:reduce){{.oc,.oc-inner{{transition:none}}}}
 @media (max-width:480px){{.oc .row,.oc .axis{{grid-template-columns:5.2rem 1fr 3rem;gap:0 8px}}.oc .bars,.oc .years{{gap:2px}}.oc-inner{{padding:14px 12px 12px}}}}
@@ -306,7 +306,7 @@ CARD_HTML = """<!-- outside-card -->
 <div><div class="oc-inner" aria-label="Hours outside per year by activity, {first} to {last}">
 <div class="axis" aria-hidden="true"><span></span><span class="years">{axis}</span><span></span></div>
 {rows}
-{climb_card}<p class="oc-foot"><span>{hours} hours since {first} · {last} so far is striped</span><a href="outside/">Numbers</a></p>
+<p class="oc-foot"><span>{hours} hours since {first} · {last} so far is striped</span><a href="outside/">Numbers</a></p>
 </div></div>
 </div>
 <script>
@@ -329,10 +329,6 @@ def main():
     acts = load(sys.argv[1])
     d = build(acts)
     c = climbing(sys.argv[2]) if len(sys.argv) > 2 else None
-    d["climb_card"] = (
-        f'<p class="oc-climb">Climbing: {c["n"]} routes logged, {c["y0"]}–{c["y1"]}, in {c["where"]}. '
-        f'Hardest lead {c["hardest"]}.</p>\n' if c else ""
-    )
     d["climb_page"] = (
         f'<h2>Climbing</h2>\n<p>{c["n"]} routes logged on Mountain Project from {c["y0"]} to {c["y1"]}, '
         f'mostly in {c["top"]}, across {c["where"]}. Hardest lead {c["hardest"]}.</p>\n'
