@@ -7,34 +7,79 @@
   if (!cv || !cv.getContext) return;
   var ctx = cv.getContext('2d');
   var land = [0.11, 0.24], photo = [0, 0.38, 0.5, 0.64, 0.8];
-  var up = false, root = document.documentElement;
+  var up = false, root = document.documentElement, panX = 0;
+  // Phone framing when climbed up: West Coast to the Black Sea, where nearly all the photos are.
+  var FRAME_W = -130, FRAME_E = 45;
+  function col(lon) { return (lon - W.lon0) / W.step; }
+
+  function layout(vw, vh) {
+    var narrow = vw < 700, cell, ox;
+    if (up && narrow) {
+      cell = vw / (col(FRAME_E) - col(FRAME_W));
+      ox = -col(FRAME_W) * cell + panX;
+    } else {
+      cell = Math.max(vw / W.cols, 4.2);
+      var mw = cell * W.cols;
+      // Background on phones: centre on home so the dots that peek out are Seattle's.
+      ox = narrow ? vw / 2 - (W.home[0] + 0.5) * cell : (vw - mw) / 2;
+      ox = Math.min(0, Math.max(vw - mw, ox));
+      if (mw <= vw) ox = (vw - mw) / 2;
+    }
+    var oy = Math.max(0, (vh - cell * W.rows) / 2);
+    return { cell: cell, ox: ox, oy: oy, narrow: narrow };
+  }
+
   function draw() {
     var dpr = Math.min(window.devicePixelRatio || 1, 2), vw = innerWidth, vh = innerHeight;
     cv.width = vw * dpr; cv.height = vh * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, vw, vh);
     var ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#16181A';
-    var cell = Math.max(vw / W.cols, 4.2), ox = (vw - cell * W.cols) / 2, oy = Math.max(0, (vh - cell * W.rows) / 2);
+    var L = layout(vw, vh), cell = L.cell, ox = L.ox, oy = L.oy;
     var main = document.querySelector('main').getBoundingClientRect(), cl = main.left + 8, cr = main.right - 8, fade = 48;
     function k(x) { if (up) return 1.6; var d = x < cl ? cl - x : x > cr ? x - cr : 0, t = Math.min(1, d / fade); return 0.28 + 0.72 * t * t * (3 - 2 * t); }
-    function dot(c, r, a, rad) { var x = ox + (c + 0.5) * cell; ctx.globalAlpha = Math.min(1, a * k(x)); ctx.beginPath(); ctx.arc(x, oy + (r + 0.5) * cell, rad, 0, 6.2832); ctx.fill(); }
+    var rLand = Math.max(cell * 0.2, 0.9), rPhoto = Math.max(cell * 0.32, 1.4);
+    function dot(c, r, a, rad) {
+      var x = ox + (c + 0.5) * cell;
+      if (x < -4 || x > vw + 4) return;
+      ctx.globalAlpha = Math.min(1, a * k(x)); ctx.beginPath(); ctx.arc(x, oy + (r + 0.5) * cell, rad, 0, 6.2832); ctx.fill();
+    }
     ctx.fillStyle = ink;
-    W.land.forEach(function (d) { dot(d[0], d[1], land[d[2]], cell * 0.2); });
-    W.photos.forEach(function (d) { dot(d[0], d[1], photo[d[2]], cell * 0.32); });
+    W.land.forEach(function (d) { dot(d[0], d[1], land[d[2]], rLand); });
+    W.photos.forEach(function (d) { dot(d[0], d[1], photo[d[2]], rPhoto); });
     var hx = ox + (W.home[0] + 0.5) * cell;
-    ctx.globalAlpha = Math.min(1, 0.65 * k(hx)); ctx.strokeStyle = ink; ctx.lineWidth = 1;
-    ctx.lineWidth = up ? 1.5 : 1; ctx.beginPath(); ctx.arc(hx, oy + (W.home[1] + 0.5) * cell, cell * (up ? 2.2 : 0.85), 0, 6.2832); ctx.stroke();
+    ctx.globalAlpha = Math.min(1, 0.65 * k(hx)); ctx.strokeStyle = ink;
+    ctx.lineWidth = up ? 1.5 : 1; ctx.beginPath();
+    ctx.arc(hx, oy + (W.home[1] + 0.5) * cell, up ? Math.max(cell * 2.2, 9) : cell * 0.85, 0, 6.2832); ctx.stroke();
     ctx.globalAlpha = 1;
   }
   draw();
+
   // Easter egg: the palm tree photo climbs up to show the map; anywhere else climbs down.
   var tree = document.querySelector('.tree'), note = document.getElementById('climb');
   function climb(v) {
-    up = v; root.classList.toggle('up', v);
+    up = v; panX = 0; root.classList.toggle('up', v);
     if (tree) tree.setAttribute('aria-pressed', String(v));
     if (note) note.hidden = !v;
     draw();
   }
+  // On phones, swipe sideways while up to pan; a drag does not count as "climb down".
+  var drag = null, dragged = false;
+  function bounds() {
+    var vw = innerWidth, L = layout(vw, innerHeight), mw = L.cell * W.cols;
+    var base = L.ox - panX;
+    return { min: vw - mw - base, max: -base };
+  }
+  addEventListener('pointerdown', function (e) { if (up && innerWidth < 700) { drag = { x: e.clientX, p: panX }; dragged = false; } });
+  addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    if (Math.abs(dx) > 6) dragged = true;
+    if (dragged) { var b = bounds(); panX = Math.min(b.max, Math.max(b.min, drag.p + dx)); draw(); }
+  });
+  addEventListener('pointerup', function () { drag = null; });
+  addEventListener('pointercancel', function () { drag = null; });
+
   if (tree) tree.addEventListener('click', function (e) { e.stopPropagation(); climb(!up); });
-  document.addEventListener('click', function () { if (up) climb(false); });
+  document.addEventListener('click', function () { if (dragged) { dragged = false; return; } if (up) climb(false); });
   document.addEventListener('keydown', function (e) { if (up && e.key === 'Escape') climb(false); });
   addEventListener('resize', draw);
   if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);

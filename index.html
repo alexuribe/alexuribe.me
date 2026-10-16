@@ -31,6 +31,8 @@ a:hover{opacity:.7}
 main{transition:opacity .4s ease}
 .up main{opacity:0;pointer-events:none}
 .up body{cursor:pointer}
+.swipe{display:none}
+@media (max-width:699px){.swipe{display:inline}.up body{touch-action:none}}
 .climb{position:fixed;left:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));right:24px;max-width:30em;margin:0;font:13px/1.6 'IBM Plex Mono',ui-monospace,monospace;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){main{transition:none}}
 h1{margin:0 0 32px;font-size:28px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
@@ -119,7 +121,7 @@ a.addEventListener('click',t);a.addEventListener('keydown',function(e){if(e.key=
 
 <footer>© 2026 · There’s a map behind this page. The palm tree knows.</footer>
 </main>
-<p class="climb" id="climb" role="status" hidden>From up here: 23 countries and about 1,100 places, all from my photos. Seattle’s circled. Tap to climb down.</p>
+<p class="climb" id="climb" role="status" hidden>From up here: 23 countries and about 1,100 places, all from my photos. Seattle’s circled. Tap to climb down.<span class="swipe"> Swipe to look around.</span></p>
 <script src="places.js" defer></script>
 </body>
 </html>
